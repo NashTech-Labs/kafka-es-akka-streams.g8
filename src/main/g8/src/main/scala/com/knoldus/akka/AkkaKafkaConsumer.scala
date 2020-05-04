@@ -2,6 +2,24 @@ package com.knoldus.akka
 
 import java.io.{BufferedInputStream, ByteArrayInputStream, InputStream}
 
+import akka.actor.ActorSystem
+import akka.kafka.ConsumerMessage.{CommittableMessage, CommittableOffset, CommittableOffsetBatch}
+import akka.kafka.scaladsl.Consumer
+import akka.kafka.{ConsumerSettings, Subscriptions}
+import akka.stream.scaladsl.{Flow, GraphDSL, Source, Unzip, Zip}
+import akka.stream.{FlowShape, OverflowStrategy}
+import akka.{Done, NotUsed}
+import com.knoldus.common.MDCProvider
+import com.knoldus.common.services.RestartingStreamFactory
+import com.knoldus.common.utils.CommonFlows
+import com.knoldus.common.utils.CommonFlows._
+import com.typesafe.config.{Config, ConfigFactory}
+import org.apache.commons.compress.compressors.{CompressorException, CompressorStreamFactory}
+import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord, RetriableCommitFailedException}
+import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}
+import org.slf4j.{Logger, LoggerFactory}
+import play.api.libs.json.{Format, Json, Reads}
+
 import scala.collection.immutable.{Seq, Vector}
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -127,7 +145,7 @@ trait AkkaKafkaConsumer {
 
     Flow.fromGraph(GraphDSL.create(flow) { implicit builder =>
       flow =>
-
+        import GraphDSL.Implicits._
         val unzip = builder.add(Unzip[CommittableOffset, ConsumerRecord[K, V]])
         val zip = builder.add(Zip[CommittableOffset, Done])
         val committer = {

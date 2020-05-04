@@ -1,5 +1,8 @@
 package com.knoldus.akka
 
+import akka.actor.ActorSystem
+import com.knoldus.common.AkkaStreamJob
+
 object PushItPushItRealGood extends AkkaStreamJob(ActorSystem("Salt-N-Pepa")) {
 
   private val esHosts = config.getString("elasticsearch.host")

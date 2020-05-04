@@ -1,5 +1,8 @@
 package com.knoldus.akka
 
+import com.knoldus.elasticsearch.api.Elasticsearch
+import com.typesafe.config.{Config, ConfigFactory}
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 

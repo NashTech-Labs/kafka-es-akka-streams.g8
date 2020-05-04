@@ -1,6 +1,24 @@
 package com.knoldus.elasticsearch.api
 
+import com.knoldus.common.services._
+import com.knoldus.common.utils.ResourceCompanion
+import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s._
+import com.sksamuel.elastic4s.source.DocumentSource
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse
+import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.client.transport.NoNodeAvailableException
+import org.elasticsearch.cluster.block.ClusterBlockException
+import org.elasticsearch.index.engine.{DocumentAlreadyExistsException, VersionConflictEngineException}
+import org.elasticsearch.search.aggregations.Aggregation
+import org.elasticsearch.search.aggregations.bucket.nested.Nested
+import org.elasticsearch.search.aggregations.bucket.terms.Terms
+import org.elasticsearch.transport.RemoteTransportException
+import org.slf4j.{Logger, LoggerFactory}
+import play.api.libs.json._
+
 import scala.Option.option2Iterable
+import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -90,24 +108,6 @@ class Elasticsearch(
     }
   }
 
-  //
-  //  def buildFilter(f: FilterTrait): FilterDefinition = {
-  //    f match {
-  //      case idf: IdsFilter => idsFilter(idf.ids: _*)
-  //      case qf: QueryFilter => queryFilter(new QueryStringQueryDefinition(qf.f))
-  //      case cf: ChildFilter => hasChildFilter(cf.docType).filter(buildFilter(cf.f))
-  //      case pf: ParentFilter => hasParentFilter(pf.docType).filter(buildFilter(pf.f))
-  //      case nf: NestedFilter => nestedFilter(nf.path).filter(buildFilter(nf.f))
-  //      case not: NotFilter => new BoolFilterDefinition().must().not(buildFilter(not.f))
-  //      case filters: AndFilterList =>
-  //        val (must, mustNot) = filters.list.partition(_.must)
-  //        new BoolFilterDefinition().must(must.map(buildFilter): _*).not(mustNot.map(buildFilter): _*)
-  //      case filters: OrFilterList =>
-  //        val (must, mustNot) = filters.list.partition(_.must)
-  //        new BoolFilterDefinition().should(must.map(buildFilter) ++ mustNot.map(x => new BoolFilterDefinition().must().not(buildFilter(x))): _*)
-  //    }
-  //  }
-
   /**
    * Asynchronous Get to elasticsearch, returning a JsObject
    */
@@ -152,17 +152,7 @@ class Elasticsearch(
     try {
       val id = typ.id(obj)
       var indexCmd = index into indexDoc doc jsonSource id id
-      //      val parentId = typ.parentId(id)
-      //      if (parentId.isDefined) {
-      //        indexCmd = indexCmd.parent(parentId.get)
-      //      }
-      //      if (conditional) {
-      //        indexCmd = version match {
-      //          case Some(v) if v == 0 => indexCmd.opType(org.elasticsearch.action.index.IndexRequest.OpType.CREATE)
-      //          case Some(v) => indexCmd.version(v)
-      //          case None => indexCmd
-      //        }
-      //      }
+            case None => indexCmd
 
       client.execute {
         indexCmd
@@ -205,10 +195,6 @@ class Elasticsearch(
       val jsonSource = JsonSource(Json.toJson(obj))
       val id = typ.id(obj)
       var indexCmd = index into indexDoc doc jsonSource id id
-      //      val parentId = typ.parentId(id)
-      //      if (parentId.isDefined) {
-      //        indexCmd = indexCmd.parent(parentId.get)
-      //      }
       indexCmd
     }
 
@@ -276,6 +262,7 @@ class Elasticsearch(
    * Gets a map of indices to the list of aliases that they have
    */
   override def getAliasesByIndex: Future[Map[String, List[String]]] = {
+    import scala.collection.JavaConversions._
     Future {
       val indexToAliasMap = client.client.admin.cluster().prepareState().execute().actionGet().getState.getMetaData.aliases()
       (for {
@@ -313,6 +300,7 @@ class Elasticsearch(
    * Get all indices matching the given string, e.g. "oculus_*"
    */
   override def getMatchingIndices(matching: String): Future[Seq[String]] = {
+    import org.elasticsearch.action.support.IndicesOptions
     // Drop down into raw Elastic Java API, wrapping in a Future (bit hacky)
     Future {
       client.client.admin().cluster().prepareState().execute().actionGet().getState.getMetaData

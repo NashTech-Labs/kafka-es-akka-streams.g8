@@ -1,5 +1,7 @@
 package com.knoldus.common
 
+import org.slf4j.MDC
+
 import scala.language.implicitConversions
 
 object MDCProvider {

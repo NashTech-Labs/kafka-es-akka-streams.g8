@@ -1,5 +1,16 @@
 package com.knoldus.akka
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Flow, Source}
+import akka.{Done, NotUsed}
+import com.knoldus.akka.AkkaKafkaConsumer.DeserializationFlowFactory
+import com.knoldus.common.utils.{CommonFlows, HasDefaultConfig, ResourceCompanion}
+import org.apache.http.HttpHost
+import org.elasticsearch.client.RestClient
+import org.slf4j.{Logger, LoggerFactory}
+import play.api.libs.json.Format
+
 import scala.language.implicitConversions
 
 abstract class DataFlowToES(index: String, esHosts: String,

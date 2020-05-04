@@ -1,4 +1,8 @@
 package com.knoldus.common
+import akka.actor.ActorSystem
+import akka.stream.{ActorMaterializer, ActorMaterializerSettings, Supervision}
+import com.knoldus.common.utils.HasLog
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.ExecutionContextExecutor
 

@@ -1,5 +1,10 @@
 package com.knoldus.akka
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import com.knoldus.akka.AkkaKafkaConsumer.DeserializationFlowFactory
+import com.knoldus.models.{Company, Employee}
+
 class Backend(esIndex: String,
               esHosts: String, esRestPort: Int)(
                override implicit val actorSystem: ActorSystem,

@@ -2,6 +2,12 @@ package com.knoldus.elasticsearch.api
 
 import java.io.{PrintWriter, StringWriter}
 
+import com.knoldus.common._
+import com.knoldus.common.services.{BulkUpsertResponse, DeleteResponse, GetResponse, UpsertResponse}
+import com.knoldus.common.utils.ResourceCompanion
+import org.slf4j.Logger
+import play.api.libs.json.{JsObject, Reads, Writes}
+
 import scala.concurrent.{ExecutionContext, Future}
 
 object ElasticsearchClient {
@@ -120,20 +126,6 @@ trait ElasticsearchClient extends AutoCloseable {
    * Returns Future with boolean value - does the index exist?
    */
   def indexExists(idx: String): Future[Boolean]
-
-  /**
-   * Put resource companion mapping if it exists.
-   * This will fail if the index does not exist - use prepareIndex instead
-   * to automatically create the index if needed before putting the mappings.
-   */
-  // def putMapping(typ: ResourceCompanion[_], index: String = ""): Future[Boolean]
-
-  /**
-   * Prepare the index for the given resource companion:
-   * Create the index if it doesn't exist
-   * Put the resource companion's mappings if any
-   */
-  //def prepareIndex(typ: ResourceCompanion[_]): Future[Boolean]
 
   /**
    * Delete the given index
