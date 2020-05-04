@@ -51,17 +51,10 @@ class Elasticsearch(
                      defaultBinaryPort: Int = Elasticsearch.defaultBinaryPort)
                    (override implicit val ec: ExecutionContext) extends ElasticsearchClient {
 
-  lazy val client: ElasticClient =
-    if (cfg.hasPath(esTestProp) && cfg.getBoolean(esTestProp)) {
-      logger.info("Using local elasticsearch for test")
-      val local = ElasticClient.local
-
-      Thread.sleep(1000) // Let indexes get created...
-      local
-    } else {
-      ElasticClient.remote(ElasticsearchClientUri(esUri))
-    }
   override val logger: Logger = LoggerFactory.getLogger(this.getClass)
+
+  private val cfg = ResourceCompanion.config
+
   val hosts: scala.Seq[(String, Int)] = esHosts.flatMap(_.split(",")).map(_.trim.split(':')).map {
     case Array(hostname, port) => hostname -> Try(port.toInt).toOption.getOrElse(defaultBinaryPort)
     case Array(hostname) => hostname -> defaultBinaryPort
@@ -72,9 +65,30 @@ class Elasticsearch(
   val esUri: String = "elasticsearch://" + hostStrings.mkString(",")
 
   val esTestProp = "elasticsearch.test"
-  private val cfg = ResourceCompanion.config
+
+  lazy val client: ElasticClient =
+    if (cfg.hasPath(esTestProp) && cfg.getBoolean(esTestProp)) {
+      logger.info("Using local elasticsearch for test")
+      val local = ElasticClient.local
+
+      Thread.sleep(1000) // Let indexes get created...
+      local
+    } else {
+      ElasticClient.remote(ElasticsearchClientUri(esUri))
+    }
 
   override def close(): Unit = client.close()
+
+  override protected def clientException(err: Throwable): Throwable = err match {
+    case _: NoNodeAvailableException => ESException("Cannot connect to Elasticsearch or it is down")
+    case x: RemoteTransportException =>
+      x.getMostSpecificCause match {
+        case _: VersionConflictEngineException | _: DocumentAlreadyExistsException => ESException(ESException.conflictMessage, 409)
+        case _: ClusterBlockException => ESException(ESException.indexWriteLockedMessage,423)
+        case e => getDefaultESError(e)
+      }
+    case e => getDefaultESError(e)
+  }
 
   def getFacetResponses(response: SearchResponse): Option[List[FacetResponse]] = {
     def toTermsAgg(agg: Aggregation): Option[Terms] = {
@@ -108,6 +122,7 @@ class Elasticsearch(
     }
   }
 
+
   /**
    * Asynchronous Get to elasticsearch, returning a JsObject
    */
@@ -135,7 +150,7 @@ class Elasticsearch(
 
   def buildGetDefinition(typ: ResourceCompanion[_], idVal: String): GetDefinition = {
     val builder = com.sksamuel.elastic4s.ElasticDsl.get id idVal from typ.indexDoc
-    builder
+      builder
   }
 
   /**
@@ -152,7 +167,6 @@ class Elasticsearch(
     try {
       val id = typ.id(obj)
       var indexCmd = index into indexDoc doc jsonSource id id
-            case None => indexCmd
 
       client.execute {
         indexCmd
@@ -170,16 +184,6 @@ class Elasticsearch(
     } catch {
       case err: Throwable => Future.failed(clientException(err))
     }
-  }
-
-  def chunkedUpsert[A](typ: ResourceCompanion[A], objs: Iterator[A], chunkSize: Int = 50000,
-                       indexOverride: Option[String] = None)(implicit tjs: Writes[A]): Future[Vector[BulkUpsertResponse]] = {
-    Future.sequence(objs.grouped(chunkSize).map { chunk =>
-      // You would only be using this if you cared about memory, so we throw this garbage collection in between each chunk jic
-      Runtime.getRuntime.gc()
-      logger.info(s"Upserting chunk of $chunkSize ${typ.docType}")
-      bulkUpsert[A](typ, chunk.toVector, indexOverride)
-    }).map(_.toVector)
   }
 
   /**
@@ -217,6 +221,16 @@ class Elasticsearch(
 
   }
 
+  def chunkedUpsert[A](typ: ResourceCompanion[A], objs: Iterator[A], chunkSize: Int = 50000,
+                       indexOverride: Option[String] = None)(implicit tjs: Writes[A]): Future[Vector[BulkUpsertResponse]] = {
+    Future.sequence(objs.grouped(chunkSize).map { chunk =>
+      // You would only be using this if you cared about memory, so we throw this garbage collection in between each chunk jic
+      Runtime.getRuntime.gc()
+      logger.info(s"Upserting chunk of $chunkSize ${typ.docType}")
+      bulkUpsert[A](typ, chunk.toVector, indexOverride)
+    }).map(_.toVector)
+  }
+
   /**
    * Asynchronous Delete to elasticsearch
    */
@@ -236,17 +250,6 @@ class Elasticsearch(
     } catch {
       case err: Throwable => Future.failed(clientException(err))
     }
-  }
-
-  override protected def clientException(err: Throwable): Throwable = err match {
-    case _: NoNodeAvailableException => ESException("Cannot connect to Elasticsearch or it is down")
-    case x: RemoteTransportException =>
-      x.getMostSpecificCause match {
-        case _: VersionConflictEngineException | _: DocumentAlreadyExistsException => ESException(ESException.conflictMessage, 409)
-        case _: ClusterBlockException => ESException(ESException.indexWriteLockedMessage, 423)
-        case e => getDefaultESError(e)
-      }
-    case e => getDefaultESError(e)
   }
 
   /**
@@ -318,29 +321,6 @@ class Elasticsearch(
   }
 
   /**
-   * Delete the given index
-   */
-  override def deleteIndex(index: String): Future[Boolean] = {
-    client.execute(ElasticDsl.deleteIndex(index)).map(response => response.isAcknowledged)
-  }
-
-  /**
-   * Returns Future with true if the index was created, false if it already existed
-   */
-  def createIndex(index: String): Future[Boolean] = {
-
-    indexExists(index) flatMap { exists =>
-      if (exists) {
-        Future.successful(false)
-      } else {
-        client.execute {
-          create index index
-        }.map { response => response.isAcknowledged }
-      }
-    }
-  }
-
-  /**
    * Returns Future with boolean value - does the index exist?
    */
   override def indexExists(idx: String): Future[Boolean] =
@@ -351,6 +331,29 @@ class Elasticsearch(
     }
 
   /**
+   * Delete the given index
+   */
+  override def deleteIndex(index: String): Future[Boolean] = {
+    client.execute(ElasticDsl.deleteIndex(index)).map(response => response.isAcknowledged)
+  }
+  /**
+   * Returns Future with true if the index was created, false if it already existed
+   */
+  def createIndex(index: String): Future[Boolean] = {
+
+    indexExists(index) flatMap { exists =>
+      if (exists) {
+        Future.successful(false)
+      } else {
+        client.execute
+        {
+          create index index
+        }.map { response => response.isAcknowledged }
+      }
+    }
+  }
+
+  /**
    * Returns Future with true if the index was created, false if it already existed
    */
   def createIndexWithType(index: String): Future[Boolean] = {
@@ -359,10 +362,11 @@ class Elasticsearch(
       if (exists) {
         Future.successful(false)
       } else {
-        client.execute {
-          create index index mappings("employee-type", "company-type"
-          )
-        }.map { response => response.isAcknowledged }
+        client.execute
+           {
+            create index index mappings("employee-type","company-type"
+            )
+          }.map { response => response.isAcknowledged }
       }
     }
   }
