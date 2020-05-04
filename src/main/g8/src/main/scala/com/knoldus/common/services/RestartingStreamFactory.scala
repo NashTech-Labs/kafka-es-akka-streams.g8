@@ -1,7 +1,5 @@
 package com.knoldus.common.services
 
-import akka.NotUsed
-import akka.stream.scaladsl._
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -14,6 +12,7 @@ case class RestartingStreamFactory(minBackOff: FiniteDuration, maxBackOff: Finit
 
   /**
    * Create a restarting flow that wraps `toWrap`.
+   *
    * @param toWrap the flow to be wrapped
    */
   def flow[T, S](toWrap: Flow[T, S, _]): Flow[T, S, NotUsed] =
@@ -35,6 +34,7 @@ case class RestartingStreamFactory(minBackOff: FiniteDuration, maxBackOff: Finit
 
   /**
    * Create a restarting sink that wraps `toWrap`.  Note that backoff only on failure is not supported for sinks.
+   *
    * @param toWrap the sink to be wrapped
    */
   def sink[T](toWrap: Sink[T, _]): Sink[T, NotUsed] =
@@ -47,6 +47,7 @@ case class RestartingStreamFactory(minBackOff: FiniteDuration, maxBackOff: Finit
 
   /**
    * Create a restarting source that wraps `wrap`
+   *
    * @param wrap the source to wrap
    */
   def source[T](wrap: Source[T, _]): Source[T, NotUsed] =

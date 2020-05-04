@@ -1,10 +1,8 @@
 package com.knoldus.akka
 
-import com.knoldus.elasticsearch.api.Elasticsearch
-import com.typesafe.config.{Config, ConfigFactory}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
+
 object CreateIndex {
 
   private val config: Config = ConfigFactory.load()
@@ -19,7 +17,7 @@ object CreateIndex {
   def run(): Unit = {
     val es = new Elasticsearch(esHostsList)
     val indexCreated = es.createIndexWithType(esIndex)
-     Await.result(indexCreated, 2.minutes)
+    Await.result(indexCreated, 2.minutes)
 
   }
 }

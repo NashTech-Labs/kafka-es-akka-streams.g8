@@ -1,18 +1,5 @@
 package com.knoldus.akka
 
-import akka.actor.ActorSystem
-import akka.stream.alpakka.elasticsearch._
-import akka.stream.alpakka.elasticsearch.scaladsl._
-import akka.stream.scaladsl.Flow
-import akka.{Done, NotUsed}
-import com.knoldus.common.utils.{CommonFlows, Play2Spray, ResourceCompanion}
-import com.knoldus.elasticsearch.api.ElasticsearchClient.ElasticsearchIndex
-import com.typesafe.config.Config
-import org.elasticsearch.client.RestClient
-import org.slf4j.{Logger, LoggerFactory}
-import play.api.libs.json.Format
-import spray.json.JsonWriter
-
 trait AkkaElasticsearchProducer {
   type WriteFlow[A] = Flow[WriteMessage[A, NotUsed], Seq[WriteResult[A, NotUsed]], NotUsed]
   val defaultMetaExtractor: Any => Map[String, String] = _ => Map.empty[String, String]

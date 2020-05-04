@@ -1,8 +1,5 @@
 package com.knoldus.common.services
 
-import play.api.libs.json.Reads._
-import play.api.libs.json._
-
 import scala.collection.breakOut
 import scala.collection.immutable.Map
 import scala.concurrent.Future
@@ -23,6 +20,7 @@ trait ReadService[A] {
 
 trait WriteService[A] {
   def upsert(obj: A): Future[UpsertResponse[A]]
+
   def upsertConditional(obj: A, version: Option[Long]): Future[UpsertResponse[A]]
 
   def bulkUpsert(objs: Vector[A]): Future[BulkUpsertResponse]
@@ -30,6 +28,7 @@ trait WriteService[A] {
 
 trait JsonWriteService[A] extends WriteService[A] {
   def upsert(obj: A, tjs: play.api.libs.json.Writes[A]): Future[UpsertResponse[A]]
+
   def upsertConditional(obj: A, version: Option[Long], tjs: play.api.libs.json.Writes[A]): Future[UpsertResponse[A]]
 }
 
@@ -77,7 +76,11 @@ object FacetResponse {
         }
         FacetResponse(fieldName = fieldName, values = valueSeq.toMap)
       }
-      if (objOpt.isDefined) { JsSuccess(objOpt.get) } else { JsError() }
+      if (objOpt.isDefined) {
+        JsSuccess(objOpt.get)
+      } else {
+        JsError()
+      }
     }
   }
 
@@ -165,8 +168,16 @@ case class QueryResponse[T](
       val facetList: Seq[FacetResponse] = tup._2
       facetList.foldLeft(FacetResponse(fieldName))(_ + _)
     }(breakOut)
-    val allFacetsOpt = if (allFacets.nonEmpty) { Some(allFacets) } else { None }
-    val allAggsOpt = if (this.aggs.isEmpty && that.aggs.isEmpty) { None } else { Some(this.aggs.getOrElse(Json.obj()) ++ that.aggs.getOrElse(Json.obj())) }
+    val allFacetsOpt = if (allFacets.nonEmpty) {
+      Some(allFacets)
+    } else {
+      None
+    }
+    val allAggsOpt = if (this.aggs.isEmpty && that.aggs.isEmpty) {
+      None
+    } else {
+      Some(this.aggs.getOrElse(Json.obj()) ++ that.aggs.getOrElse(Json.obj()))
+    }
     // tookMillis is < 0 (e.g. -1) if it's not set, so to add two tookMillis values we don't want to sum negative values
     val tookMillis = if (this.tookMillis < 0) that.tookMillis else if (that.tookMillis < 0) this.tookMillis else this.tookMillis + that.tookMillis
     this.copy(total = this.total + that.total, values = allValues, tookMillis = tookMillis, facets = allFacetsOpt, aggs = allAggsOpt)
@@ -190,13 +201,11 @@ case class MultiGetResponse[T](values: Vector[T])
  */
 object Sort extends Enumeration {
   type Order = Value
-  val ascending, descending = Value
-
   /**
    * Short typename for a sequence of field -> order pairs
    */
   type Spec = List[(String, Order)]
-
+  val ascending, descending = Value
   /**
    * Value of empty sort order - or "no sort order"
    */

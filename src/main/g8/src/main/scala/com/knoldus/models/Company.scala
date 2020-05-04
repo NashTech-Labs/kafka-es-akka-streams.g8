@@ -1,8 +1,5 @@
 package com.knoldus.models
 
-import com.knoldus.common.utils.{HasDefaultConfig, ResourceCompanion}
-import play.api.libs.json.{Format, Json}
-
 case class Company(regNo: String,
                    name: String,
                    address: Address,

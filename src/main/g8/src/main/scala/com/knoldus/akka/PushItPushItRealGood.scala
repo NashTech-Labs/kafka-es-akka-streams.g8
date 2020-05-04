@@ -1,8 +1,5 @@
 package com.knoldus.akka
 
-import akka.actor.ActorSystem
-import com.knoldus.common.AkkaStreamJob
-
 object PushItPushItRealGood extends AkkaStreamJob(ActorSystem("Salt-N-Pepa")) {
 
   private val esHosts = config.getString("elasticsearch.host")
@@ -11,7 +8,7 @@ object PushItPushItRealGood extends AkkaStreamJob(ActorSystem("Salt-N-Pepa")) {
 
   def main(args: Array[String]): Unit = {
     CreateIndex.run()
-     val backend = new Backend(esIndex,esHosts,esRestPort)
-      backend.run()
+    val backend = new Backend(esIndex, esHosts, esRestPort)
+    backend.run()
   }
 }

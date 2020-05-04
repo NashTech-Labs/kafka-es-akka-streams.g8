@@ -2,12 +2,6 @@ package com.knoldus.elasticsearch.api
 
 import java.io.{PrintWriter, StringWriter}
 
-import com.knoldus.common._
-import com.knoldus.common.services.{BulkUpsertResponse, DeleteResponse, GetResponse, UpsertResponse}
-import com.knoldus.common.utils.ResourceCompanion
-import org.slf4j.Logger
-import play.api.libs.json.{JsObject, Reads, Writes}
-
 import scala.concurrent.{ExecutionContext, Future}
 
 object ElasticsearchClient {
@@ -17,6 +11,7 @@ object ElasticsearchClient {
   implicit class ElasticsearchIndex(name: String) {
     override def toString: String = name
   }
+
   implicit def elasticsearchIndexToString(esi: ElasticsearchIndex): String = esi.toString
 }
 
@@ -46,6 +41,23 @@ trait ElasticsearchClient extends AutoCloseable {
       case err: Exception => throw clientException(err)
     }
   }
+
+  /**
+   * Create a new index and put mappings
+   */
+  // def createIndexWithMappings(index: String, typs: GenIterable[ResourceCompanion[_]]): Future[Boolean]
+
+  protected def clientException(err: Throwable): Throwable = err match {
+    case e => getDefaultESError(e)
+  }
+
+  protected def getDefaultESError(err: Throwable): ESException = {
+    val sw = new StringWriter()
+    err.printStackTrace(new PrintWriter(sw))
+    logger.error("Failed to execute against Elasticsearch - " + err.getClass + ": " + err.getMessage + "\n" + sw.toString)
+    ESException("Unknown error connecting to Elasticsearch - " + err.getClass + ": " + err.getMessage + "\n" + sw.toString)
+  }
+
   /**
    * Asynchronous Insert/Update to elasticsearch
    */
@@ -110,21 +122,11 @@ trait ElasticsearchClient extends AutoCloseable {
   def indexExists(idx: String): Future[Boolean]
 
   /**
-   * Delete the given index
-   */
-  def deleteIndex(index: String): Future[Boolean]
-
-  /**
-   * Returns Future with true if the index was created, false if it already existed
-   */
-  def createIndex(index: String): Future[Boolean]
-
-  /**
    * Put resource companion mapping if it exists.
    * This will fail if the index does not exist - use prepareIndex instead
    * to automatically create the index if needed before putting the mappings.
    */
- // def putMapping(typ: ResourceCompanion[_], index: String = ""): Future[Boolean]
+  // def putMapping(typ: ResourceCompanion[_], index: String = ""): Future[Boolean]
 
   /**
    * Prepare the index for the given resource companion:
@@ -134,19 +136,13 @@ trait ElasticsearchClient extends AutoCloseable {
   //def prepareIndex(typ: ResourceCompanion[_]): Future[Boolean]
 
   /**
-   * Create a new index and put mappings
+   * Delete the given index
    */
- // def createIndexWithMappings(index: String, typs: GenIterable[ResourceCompanion[_]]): Future[Boolean]
+  def deleteIndex(index: String): Future[Boolean]
 
-  protected def clientException(err: Throwable): Throwable = err match {
-    case e => getDefaultESError(e)
-  }
-
-  protected def getDefaultESError(err: Throwable): ESException = {
-    val sw = new StringWriter()
-    err.printStackTrace(new PrintWriter(sw))
-    logger.error("Failed to execute against Elasticsearch - " + err.getClass + ": " + err.getMessage + "\n" + sw.toString)
-    ESException("Unknown error connecting to Elasticsearch - " + err.getClass + ": " + err.getMessage + "\n" + sw.toString)
-  }
+  /**
+   * Returns Future with true if the index was created, false if it already existed
+   */
+  def createIndex(index: String): Future[Boolean]
 
 }

@@ -10,5 +10,5 @@ object CommonConversion {
       case (newKey, newKeyMap) =>
         newKey -> newKeyMap.values.toList
     }
-}
+  }
 }
